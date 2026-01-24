@@ -1,5 +1,8 @@
-TELEGRAM_TOKEN = "8293582725:AAFp6tviJ5rVd7fVvoP7kun1b7uORX_hyIk"
-TELEGRAM_CHAT = "@vagas_aeb_brasil"
+import os
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT = os.getenv("TELEGRAM_CHAT")
+
 
 PALAVRAS_CHAVE = [
     "Maitre",
