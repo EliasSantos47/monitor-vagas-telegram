@@ -1,18 +1,16 @@
 import requests
 from config import TELEGRAM_TOKEN, TELEGRAM_CHAT
 
-def enviar(msg):
-    print("TOKEN:", TELEGRAM_TOKEN)
-    print("CHAT:", TELEGRAM_CHAT)
-
+def enviar(mensagem):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
     payload = {
         "chat_id": TELEGRAM_CHAT,
-        "text": msg
+        "text": mensagem,
+        "parse_mode": "HTML"
     }
 
-    r = requests.post(url, data=payload)
-    print("STATUS:", r.status_code)
-    print("RESPOSTA:", r.text)
+    response = requests.post(url, json=payload)
 
+    print("STATUS:", response.status_code)
+    print("RESPOSTA:", response.text)
