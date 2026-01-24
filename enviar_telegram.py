@@ -10,7 +10,7 @@ def enviar(mensagem):
         "parse_mode": "HTML"
     }
 
-    response = requests.post(url, json=payload)
+    response = requests.post(url, data=payload)
 
     print("STATUS:", response.status_code)
     print("RESPOSTA:", response.text)
