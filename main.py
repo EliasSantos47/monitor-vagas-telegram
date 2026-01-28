@@ -18,13 +18,14 @@ from fontes.sine import buscar_vagas_sine
 from fontes.mogiconecta import buscar_vagas_mogiconecta
 
 def executar_ciclo_de_busca():
-    """Função que realiza uma rodada completa de busca em todas as fontes"""
-    print(f"\n--- 🕒 Início do Ciclo: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')} ---")
-    print(f"🔑 Filtrando por: {', '.join(CARGOS_PERMITIDOS)}")
+    """Realiza a busca, gera relatório de status e envia vagas encontradas"""
+    agora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+    print(f"\n--- 🕒 Início do Ciclo: {agora} ---")
     
     todas_as_vagas = []
+    relatorio_fontes = [] # Armazena o resultado de cada site para o relatório
 
-    # Lista de fontes configuradas
+    # Lista de fontes para iteração
     fontes = [
         ("InfoJobs", buscar_vagas_infojobs),
         ("Indeed", buscar_vagas_indeed),
@@ -39,51 +40,55 @@ def executar_ciclo_de_busca():
 
     for nome, func in fontes:
         try:
-            print(f"🔎 Buscando em {nome}...")
+            print(f"🔎 Consultando {nome}...")
             vagas = func()
-            print(f"✅ {nome}: {len(vagas)} vagas encontradas.")
+            qtd = len(vagas)
             todas_as_vagas.extend(vagas)
+            relatorio_fontes.append(f"🔹 {nome}: {qtd} vagas")
         except Exception as e:
-            # Se uma fonte falhar, o bot continua para a próxima em vez de travar
-            print(f"❌ Erro ao buscar em {nome}: {e}")
+            print(f"❌ Erro em {nome}: {e}")
+            relatorio_fontes.append(f"❌ {nome}: Falha na conexão")
 
-    # Processamento e Ranking
+    # Processamento e Filtro A&B
     vagas_rankeadas = ranquear_vagas(todas_as_vagas)
+    qtd_filtradas = len(vagas_rankeadas)
 
-    if not vagas_rankeadas:
-        print("ℹ️ Nenhuma vaga compatível encontrada neste ciclo.")
-        return
+    # --- MONTAGEM DA MENSAGEM DE STATUS (CHECKPOINT) ---
+    status_msg = (
+        f"🛰️ **RELATÓRIO DE MONITORAMENTO**\n"
+        f"⏰ Horário: {agora}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        + "\n".join(relatorio_fontes) + "\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🎯 Vagas qualificadas (A&B): **{qtd_filtradas}**"
+    )
 
-    # Formatação da mensagem para o Telegram
-    mensagem = "📊 *RANKING DE VAGAS ATUALIZADO*\n\n"
-    for vaga in vagas_rankeadas[:15]:
-        mensagem += formatar_vaga(vaga) + "\n"
+    # Envia o status para você saber que o bot está ativo
+    enviar_telegram(status_msg)
 
-    # Envio para o canal configurado no Railway
-    try:
-        enviar_telegram(mensagem)
-        print("📢 Notificação enviada ao Telegram!")
-    except Exception as e:
-        print(f"❌ Falha ao enviar mensagem para o Telegram: {e}")
+    # Se houver vagas qualificadas, envia o ranking em uma mensagem separada
+    if qtd_filtradas > 0:
+        print(f"📢 Enviando {qtd_filtradas} vagas para o Telegram...")
+        mensagem_vagas = "📊 *RANKING DE VAGAS QUALIFICADAS*\n\n"
+        for vaga in vagas_rankeadas[:15]:
+            mensagem_vagas += formatar_vaga(vaga) + "\n"
+        enviar_telegram(mensagem_vagas)
+    else:
+        print("ℹ️ Ciclo finalizado sem vagas qualificadas para os critérios de A&B.")
 
 if __name__ == "__main__":
-    print("🚀 Automação configurada para rodar 24/7 na nuvem.")
+    print("🚀 Bot de Monitoramento iniciado em modo 24/7.")
     
     while True:
         try:
             executar_ciclo_de_busca()
             
-            # Intervalo de 1 hora (3600 segundos) conforme solicitado
-            INTERVALO_HORA = 3600 
-            print(f"\n😴 Ciclo finalizado com sucesso.")
-            print(f"Aguardando 60 minutos para a próxima verificação...")
-            time.sleep(INTERVALO_HORA)
+            # Intervalo de 1 hora (3600 segundos)
+            INTERVALO = 3600 
+            print(f"😴 Dormindo por 60 minutos... Próxima busca em: {datetime.now().hour + 1}:00")
+            time.sleep(INTERVALO)
             
-        except KeyboardInterrupt:
-            print("\n🛑 Automação interrompida manualmente.")
-            break
         except Exception as erro_critico:
-            # Caso ocorra um erro inesperado, espera 5 minutos e reinicia o loop
-            print(f"⚠️ ERRO CRÍTICO NO SISTEMA: {erro_critico}")
-            print("Reiniciando em 300 segundos para evitar travamento...")
+            print(f"🚨 ERRO CRÍTICO NO LOOP: {erro_critico}")
+            # Em caso de erro grave, espera 5 minutos e reinicia
             time.sleep(300)
