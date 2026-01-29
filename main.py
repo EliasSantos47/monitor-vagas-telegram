@@ -45,4 +45,3 @@ if __name__ == "__main__":
         monitorar()
         print("😴 Dormindo por 30 minutos...")
         time.sleep(1800) # Espera 30 minutos
-
