@@ -91,4 +91,5 @@ if __name__ == "__main__":
         except Exception as erro_critico:
             print(f"🚨 ERRO CRÍTICO NO LOOP: {erro_critico}")
             # Em caso de erro grave, espera 5 minutos e reinicia
+
             time.sleep(300)
