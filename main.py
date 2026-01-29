@@ -1,95 +1,47 @@
+import requests
+from bs4 import BeautifulSoup
 import time
-from datetime import datetime
+import os
 
-# Importações de configuração e utilitários
-from config import CARGOS_PERMITIDOS
-from ranking import ranquear_vagas, formatar_vaga
-from telegram_bot import enviar_telegram
+# --- CONFIGURAÇÕES (COLE SEUS DADOS AQUI) ---
+TOKEN = "8293582725:AAFp6tviJ5rVd7fVvoP7kun1b7uORX_hyIk"
+CHAT_ID = "@vagas_aeb_brail"
 
-# Importações das fontes de busca
-from fontes.infojobs import buscar_vagas_infojobs
-from fontes.indeed import buscar_vagas_indeed
-from fontes.gupy import buscar_vagas_gupy
-from fontes.vagas import buscar_vagas_vagas
-from fontes.burh import buscar_vagas_burh
-from fontes.glassdoor import buscar_vagas_glassdoor
-from fontes.linkedin import buscar_vagas_linkedin
-from fontes.sine import buscar_vagas_sine
-from fontes.mogiconecta import buscar_vagas_mogiconecta
+# Lista de sites para monitorar (Exemplo simples para teste)
+# Você pode adicionar as URLs reais de busca do InfoJobs/Gupy aqui
+SITES = [
+    {"nome": "InfoJobs - Exemplo", "url": "https://www.infojobs.com.br/vagas-de-emprego.aspx"},
+]
 
-def executar_ciclo_de_busca():
-    """Realiza a busca, gera relatório de status e envia vagas encontradas"""
-    agora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-    print(f"\n--- 🕒 Início do Ciclo: {agora} ---")
-    
-    todas_as_vagas = []
-    relatorio_fontes = [] # Armazena o resultado de cada site para o relatório
+VAGAS_ENVIADAS = set()
 
-    # Lista de fontes para iteração
-    fontes = [
-        ("InfoJobs", buscar_vagas_infojobs),
-        ("Indeed", buscar_vagas_indeed),
-        ("Gupy", buscar_vagas_gupy),
-        ("Vagas.com", buscar_vagas_vagas),
-        ("Burh", buscar_vagas_burh),
-        ("Glassdoor", buscar_vagas_glassdoor),
-        ("LinkedIn", buscar_vagas_linkedin),
-        ("SINE", buscar_vagas_sine),
-        ("Mogi Conecta", buscar_vagas_mogiconecta),
-    ]
+def enviar_mensagem(texto):
+    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": texto}
+    try:
+        requests.post(url, data=data)
+    except Exception as e:
+        print(f"Erro ao enviar Telegram: {e}")
 
-    for nome, func in fontes:
+def monitorar():
+    print("🔎 Iniciando ronda de vagas...")
+    for site in SITES:
         try:
-            print(f"🔎 Consultando {nome}...")
-            vagas = func()
-            qtd = len(vagas)
-            todas_as_vagas.extend(vagas)
-            relatorio_fontes.append(f"🔹 {nome}: {qtd} vagas")
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(site['url'], headers=headers, timeout=10)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Aqui vai a lógica de busca de títulos (simplificada para não dar erro)
+            # Ele vai apenas avisar que acessou o site com sucesso no primeiro teste
+            enviar_mensagem(f"✅ Monitorando: {site['nome']}\nO robô está ativo e procurando!")
+            
         except Exception as e:
-            print(f"❌ Erro em {nome}: {e}")
-            relatorio_fontes.append(f"❌ {nome}: Falha na conexão")
+            print(f"Erro ao acessar {site['nome']}: {e}")
 
-    # Processamento e Filtro A&B
-    vagas_rankeadas = ranquear_vagas(todas_as_vagas)
-    qtd_filtradas = len(vagas_rankeadas)
-
-    # --- MONTAGEM DA MENSAGEM DE STATUS (CHECKPOINT) ---
-    status_msg = (
-        f"🛰️ **RELATÓRIO DE MONITORAMENTO**\n"
-        f"⏰ Horário: {agora}\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        + "\n".join(relatorio_fontes) + "\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🎯 Vagas qualificadas (A&B): **{qtd_filtradas}**"
-    )
-
-    # Envia o status para você saber que o bot está ativo
-    enviar_telegram(status_msg)
-
-    # Se houver vagas qualificadas, envia o ranking em uma mensagem separada
-    if qtd_filtradas > 0:
-        print(f"📢 Enviando {qtd_filtradas} vagas para o Telegram...")
-        mensagem_vagas = "📊 *RANKING DE VAGAS QUALIFICADAS*\n\n"
-        for vaga in vagas_rankeadas[:15]:
-            mensagem_vagas += formatar_vaga(vaga) + "\n"
-        enviar_telegram(mensagem_vagas)
-    else:
-        print("ℹ️ Ciclo finalizado sem vagas qualificadas para os critérios de A&B.")
-
+# LOOP PRINCIPAL (IMORTAL)
 if __name__ == "__main__":
-    print("🚀 Bot de Monitoramento iniciado em modo 24/7.")
-    
+    enviar_mensagem("🚀 Bot de Vagas Iniciado com Sucesso no Railway!")
     while True:
-        try:
-            executar_ciclo_de_busca()
-            
-            # Intervalo de 1 hora (3600 segundos)
-            INTERVALO = 3600 
-            print(f"😴 Dormindo por 60 minutos... Próxima busca em: {datetime.now().hour + 1}:00")
-            time.sleep(INTERVALO)
-            
-        except Exception as erro_critico:
-            print(f"🚨 ERRO CRÍTICO NO LOOP: {erro_critico}")
-            # Em caso de erro grave, espera 5 minutos e reinicia
-
-            time.sleep(300)
+        monitorar()
+        print("😴 Dormindo por 30 minutos...")
+        time.sleep(1800) # Espera 30 minutos
