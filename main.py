@@ -1,47 +1,37 @@
 import requests
-from bs4 import BeautifulSoup
 import time
 import os
 
-# --- CONFIGURAÇÕES (COLE SEUS DADOS AQUI) ---
-TOKEN = "8293582725:AAFp6tviJ5rVd7fVvoP7kun1b7uORX_hyIk"
-CHAT_ID = "@vagas_aeb_brasil"
-
-# Lista de sites para monitorar (Exemplo simples para teste)
-# Você pode adicionar as URLs reais de busca do InfoJobs/Gupy aqui
-SITES = [
-    {"nome": "InfoJobs - Exemplo", "url": "https://www.infojobs.com.br/vagas-de-emprego.aspx"},
-]
-
-VAGAS_ENVIADAS = set()
+# O código vai pegar os valores que você cadastrar no Railway
+TOKEN = os.getenv("TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 def enviar_mensagem(texto):
+    if not TOKEN or not CHAT_ID:
+        print("❌ ERRO: TOKEN ou CHAT_ID não configurados nas variáveis do Railway!")
+        return
+    
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     data = {"chat_id": CHAT_ID, "text": texto}
     try:
-        requests.post(url, data=data)
+        response = requests.post(url, data=data)
+        if response.status_code == 200:
+            print("✅ Mensagem enviada com sucesso!")
+        else:
+            print(f"⚠️ Erro no Telegram: {response.text}")
     except Exception as e:
-        print(f"Erro ao enviar Telegram: {e}")
+        print(f"🔥 Erro de conexão: {e}")
 
-def monitorar():
-    print("🔎 Iniciando ronda de vagas...")
-    for site in SITES:
-        try:
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            response = requests.get(site['url'], headers=headers, timeout=10)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Aqui vai a lógica de busca de títulos (simplificada para não dar erro)
-            # Ele vai apenas avisar que acessou o site com sucesso no primeiro teste
-            enviar_mensagem(f"✅ Monitorando: {site['nome']}\nO robô está ativo e procurando!")
-            
-        except Exception as e:
-            print(f"Erro ao acessar {site['nome']}: {e}")
-
-# LOOP PRINCIPAL (IMORTAL)
 if __name__ == "__main__":
-    enviar_mensagem("🚀 Bot de Vagas Iniciado com Sucesso no Railway!")
+    print("🚀 Bot iniciado! Verificando configurações...")
+    
+    # Mensagem de teste ao ligar
+    enviar_mensagem("🤖 Olá! Seu bot de vagas está OFICIALMENTE ATIVO no Railway!")
+
+    # Loop infinito para manter o bot vivo
     while True:
-        monitorar()
-        print("😴 Dormindo por 30 minutos...")
-        time.sleep(1800) # Espera 30 minutos
+        print("🔎 Monitorando vagas (Simulação ativa)...")
+        # Aqui você pode colocar sua lógica de raspagem depois
+        
+        print("😴 Aguardando 1 hora para a próxima verificação...")
+        time.sleep(3600)
