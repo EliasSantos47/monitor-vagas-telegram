@@ -5,7 +5,7 @@ import os
 
 # --- CONFIGURAÇÕES (COLE SEUS DADOS AQUI) ---
 TOKEN = "8293582725:AAFp6tviJ5rVd7fVvoP7kun1b7uORX_hyIk"
-CHAT_ID = "@vagas_aeb_brail"
+CHAT_ID = "@vagas_aeb_brasil"
 
 # Lista de sites para monitorar (Exemplo simples para teste)
 # Você pode adicionar as URLs reais de busca do InfoJobs/Gupy aqui
@@ -45,3 +45,4 @@ if __name__ == "__main__":
         monitorar()
         print("😴 Dormindo por 30 minutos...")
         time.sleep(1800) # Espera 30 minutos
+
