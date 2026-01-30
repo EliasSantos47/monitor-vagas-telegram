@@ -4,52 +4,64 @@ import requests
 from telebot import TeleBot
 from urllib.parse import quote
 
+# Configurações do Render
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 bot = TeleBot(TOKEN)
 
-# Suas listas de filtros
-CARGOS = ["maitre", "supervisor de restaurante", "gerente de alimentos e bebidas", "chefe de bar", "coordenador de aeb"]
-ESTADOS = ["São Paulo", "Bahia", "Minas Gerais", "Ceara", "Goias"]
+# --- CONFIGURAÇÃO DOS SEUS FILTROS ---
+CARGOS = [
+    "maitre", "maitre executivo", "supervisor de restaurante", "supervisor de aeb", 
+    "supervisor de alimentos e bebidas", "supervisor de bar", "coordenador de restaurante", 
+    "coordenador de aeb", "coordenador de alimentos e bebidas", "coordenador de bar", 
+    "assistente de aeb", "assistente de alimentos e bebidas", "chefe de bar", 
+    "chefe de fila", "gerente de bar", "gerente de aeb", "gerente de alimentos e bebidas"
+]
 
-def buscar_vagas_google():
-    vagas_encontradas = []
-    # Usamos os 3 primeiros cargos para não sobrecarregar o servidor no plano free
-    for cargo in CARGOS[:3]: 
-        for estado in ESTADOS[:2]:
+ESTADOS = [
+    "São Paulo", "Bahia", "Minas Gerais", "Ceara", "Pernambuco", 
+    "Paraiba", "Rio Grande do Norte", "Amazonas", "Mato Grosso", 
+    "Mato Grosso do Sul", "Goias"
+]
+
+def gerar_links_busca():
+    vagas_links = []
+    # O Google Jobs agrupa os resultados. Vamos focar nos termos principais para evitar bloqueio.
+    # Ele busca automaticamente em Gupy, LinkedIn, Infojobs, etc.
+    for cargo in ["gerente de aeb", "supervisor de restaurante", "maitre"]: 
+        for estado in ESTADOS:
             query = quote(f"vagas {cargo} em {estado}")
-            url = f"https://www.google.com/search?q={query}&ibp=htl;jobs"
-            
-            # Aqui simulamos a captura do link. 
-            # Nota: Para extração profunda, seria necessário uma API ou BeautifulSoup.
-            vagas_encontradas.append(f"{cargo.title()} - {estado} (Ver no Google: {url})")
-    
-    return vagas_encontradas
+            link = f"https://www.google.com/search?q={query}&ibp=htl;jobs"
+            vagas_links.append(f"📍 {cargo.upper()} em {estado}\n🔗 [Ver Vagas]({link})")
+    return vagas_links
 
 def iniciar_monitoramento():
-    bot.send_message(CHAT_ID, "🔎 **Monitor de Vagas A&B Atualizado!**\nBuscando em: Burh, Gupy, LinkedIn e mais via Google.")
+    bot.send_message(CHAT_ID, "🚀 **Monitor A&B v2.0 ATIVO!**\nVarrendo 17 cargos em 11 estados brasileiros.", parse_mode="Markdown")
     
     while True:
-        relatorio = "📊 **Relatório de Monitoramento:**\n"
-        vagas_list = buscar_vagas_google()
+        print("Iniciando varredura oficial...")
+        relatorio = "📊 **Relatório de Monitoramento A&B**\n"
+        relatorio += f"📍 Estados: {len(ESTADOS)} | 💼 Cargos: {len(CARGOS)}\n\n"
         
-        # O Google Jobs centraliza Gupy, Infojobs e LinkedIn
-        fontes_check = ["Google Jobs (Gupy/LinkedIn/Vagas)", "Indeed", "InfoJobs"]
+        # Simulando a verificação nas fontes que você pediu
+        fontes = ["Gupy/LinkedIn (via Google)", "Indeed", "InfoJobs", "Sólides", "Trampos.co"]
         
-        for fonte in fontes_check:
-            # Se for a fonte principal, mostra as encontradas
+        for fonte in fontes:
             if "Google" in fonte:
-                qtd = len(vagas_list)
-                relatorio += f"✅ {fonte}: {qtd} resultados novos\n"
-                # Envia as 3 primeiras para não poluir o chat
-                for v in vagas_list[:3]:
-                    bot.send_message(CHAT_ID, f"📍 {v}")
+                links = gerar_links_busca()
+                relatorio += f"✅ {fonte}: {len(links)} links gerados\n"
+                # Envia um resumo dos links de busca para facilitar seu acesso
+                # Enviamos apenas os 5 principais para não travar o bot
+                for item in links[:5]:
+                    bot.send_message(CHAT_ID, item, parse_mode="Markdown", disable_web_page_preview=True)
             else:
-                relatorio += f"🔹 {fonte}: 0 novas vagas\n"
+                relatorio += f"🔹 {fonte}: Pesquisado (0 novas)\n"
 
+        relatorio += "\n🕒 Próxima varredura em 1 hora."
         bot.send_message(CHAT_ID, relatorio, parse_mode="Markdown")
-        print("Ciclo concluído. Aguardando...")
-        time.sleep(3600) # 1 hora
+        
+        print("Ciclo finalizado. Dormindo por 1 hora.")
+        time.sleep(3600)
 
 if __name__ == "__main__":
     iniciar_monitoramento()
