@@ -1,83 +1,75 @@
 import os
 import time
 import random
+import threading
 from datetime import datetime, timedelta
+from flask import Flask
 from telebot import TeleBot
 from serpapi import GoogleSearch
 
-# Configurações do Render
+# --- CONFIGURAÇÃO ---
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
 bot = TeleBot(TOKEN)
+app = Flask(__name__)
 
-# Filtros
+# Rota para o Cron-job.org acessar e manter o bot vivo
+@app.route('/')
+def home():
+    return "Bot de Vagas está Online!", 200
+
 CARGOS = ["maitre", "gerente de aeb", "supervisor de restaurante", "chefe de bar", "coordenador de alimentos e bebidas"]
 ESTADOS = ["São Paulo", "Bahia", "Minas Gerais", "Ceara", "Pernambuco", "Goias"]
 
 def buscar_vagas_reais(cargo, estado):
     try:
-        params = {
-            "q": f"vagas {cargo} em {estado}",
-            "engine": "google_jobs",
-            "api_key": SERPAPI_KEY,
-            "hl": "pt-br"
-        }
+        params = {"q": f"vagas {cargo} em {estado}", "engine": "google_jobs", "api_key": SERPAPI_KEY, "hl": "pt-br"}
         search = GoogleSearch(params)
-        results = search.get_dict()
-        return results.get("jobs_results", [])
+        return search.get_dict().get("jobs_results", [])
     except Exception as e:
         print(f"Erro na API: {e}")
         return []
 
-def iniciar_monitoramento():
-    bot.send_message(CHAT_ID, "✅ **Sistema de Monitoramento 15min Ativo!**\nO bot agora enviará relatórios constantes.")
-    
+def monitor_vagas():
     while True:
-        agora = datetime.now() - timedelta(hours=3) # Ajuste para horário de Brasília se necessário
+        agora = datetime.now() - timedelta(hours=3)
         proxima = agora + timedelta(minutes=15)
         
         cargo_da_vez = random.choice(CARGOS)
         estado_da_vez = random.choice(ESTADOS)
         
-        print(f"[{agora.strftime('%H:%M:%S')}] Iniciando busca: {cargo_da_vez} em {estado_da_vez}")
         vagas = buscar_vagas_reais(cargo_da_vez, estado_da_vez)
-        
         vagas_enviadas = 0
+        
         if vagas:
             for vaga in vagas[:2]:
                 titulo = vaga.get("title", "CARGO").upper()
-                empresa = vaga.get("company_name", "Empresa não informada")
+                empresa = vaga.get("company_name", "Empresa")
                 local = vaga.get("location", "Brasil")
-                links_lista = vaga.get("apply_options", [])
-                link_direto = links_lista[0].get("link") if links_lista else vaga.get("related_links", [{}])[0].get("link", "https://google.com")
+                links = vaga.get("apply_options", [])
+                link_direto = links[0].get("link") if links else vaga.get("related_links", [{}])[0].get("link", "https://google.com")
 
-                card = (
-                    f"📍 **{titulo}**\n"
-                    f"🏢 Empresa: {empresa}\n"
-                    f"🌎 Local: {local}\n\n"
-                    f"🔗 **LINK PARA CANDIDATURA:**\n"
-                    f"{link_direto}"
-                )
-                bot.send_message(CHAT_ID, card)
+                bot.send_message(CHAT_ID, f"📍 **{titulo}**\n🏢 Empresa: {empresa}\n🌎 Local: {local}\n\n🔗 **CANDIDATURA:**\n{link_direto}")
                 vagas_enviadas += 1
 
-        # RELATÓRIO DE VARREDURA (A cada 15 min)
-        status_vagas = f"✅ {vagas_enviadas} novas encontradas" if vagas_enviadas > 0 else "ℹ️ Nenhuma vaga nova nesta rodada"
-        
-        relatorio = (
-            f"📊 **RELATÓRIO DE VARREDURA**\n"
-            f"⏰ Horário: {agora.strftime('%H:%M:%S')}\n"
-            f"🔎 Busca: {cargo_da_vez} / {estado_da_vez}\n"
-            f"📝 Status: {status_vagas}\n\n"
-            f"⏭️ **Próxima pesquisa às: {proxima.strftime('%H:%M:%S')}**"
-        )
+        # Relatório de 15 minutos
+        status = f"✅ {vagas_enviadas} encontradas" if vagas_enviadas > 0 else "ℹ️ Sem vagas novas"
+        relatorio = (f"📊 **RELATÓRIO DE VARREDURA**\n⏰ {agora.strftime('%H:%M:%S')}\n🔎 {cargo_da_vez} / {estado_da_vez}\n"
+                     f"📝 {status}\n\n⏭️ **Próxima: {proxima.strftime('%H:%M:%S')}**")
         
         bot.send_message(CHAT_ID, relatorio, parse_mode="Markdown")
-        
-        print(f"Aguardando 15 minutos... Próxima às {proxima.strftime('%H:%M:%S')}")
-        time.sleep(900) # 900 segundos = 15 minutos
+        time.sleep(900)
+
+# Função para rodar o Flask
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
 
 if __name__ == "__main__":
-    iniciar_monitoramento()
+    # Inicia o monitor de vagas em uma thread separada
+    t = threading.Thread(target=monitor_vagas)
+    t.start()
+    # Inicia o servidor Flask na thread principal
+    run_flask()
