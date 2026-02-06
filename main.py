@@ -18,14 +18,19 @@ app = Flask(__name__)
 # Rota para o Cron-job.org acessar e manter o bot vivo
 @app.route('/')
 def home():
-    return "Bot de Vagas está Online!", 200
+    return "Bot de Vagas Online - Ciclo 60min", 200
 
 CARGOS = ["maitre", "gerente de aeb", "supervisor de restaurante", "chefe de bar", "coordenador de alimentos e bebidas"]
 ESTADOS = ["São Paulo", "Bahia", "Minas Gerais", "Ceara", "Pernambuco", "Goias"]
 
 def buscar_vagas_reais(cargo, estado):
     try:
-        params = {"q": f"vagas {cargo} em {estado}", "engine": "google_jobs", "api_key": SERPAPI_KEY, "hl": "pt-br"}
+        params = {
+            "q": f"vagas {cargo} em {estado}",
+            "engine": "google_jobs",
+            "api_key": SERPAPI_KEY,
+            "hl": "pt-br"
+        }
         search = GoogleSearch(params)
         return search.get_dict().get("jobs_results", [])
     except Exception as e:
@@ -33,16 +38,20 @@ def buscar_vagas_reais(cargo, estado):
         return []
 
 def monitor_vagas():
+    bot.send_message(CHAT_ID, "🕒 **Configuração Atualizada!**\nO bot agora fará varreduras a cada **60 minutos**.")
+    
     while True:
+        # Ajuste de Horário (Brasília costuma ser -3h em relação ao servidor)
         agora = datetime.now() - timedelta(hours=3)
-        proxima = agora + timedelta(minutes=15)
+        proxima = agora + timedelta(minutes=60)
         
         cargo_da_vez = random.choice(CARGOS)
         estado_da_vez = random.choice(ESTADOS)
         
+        print(f"[{agora.strftime('%H:%M:%S')}] Iniciando busca: {cargo_da_vez} em {estado_da_vez}")
         vagas = buscar_vagas_reais(cargo_da_vez, estado_da_vez)
-        vagas_enviadas = 0
         
+        vagas_enviadas = 0
         if vagas:
             for vaga in vagas[:2]:
                 titulo = vaga.get("title", "CARGO").upper()
@@ -54,22 +63,27 @@ def monitor_vagas():
                 bot.send_message(CHAT_ID, f"📍 **{titulo}**\n🏢 Empresa: {empresa}\n🌎 Local: {local}\n\n🔗 **CANDIDATURA:**\n{link_direto}")
                 vagas_enviadas += 1
 
-        # Relatório de 15 minutos
+        # Relatório de Status (Agora configurado para 60 min)
         status = f"✅ {vagas_enviadas} encontradas" if vagas_enviadas > 0 else "ℹ️ Sem vagas novas"
-        relatorio = (f"📊 **RELATÓRIO DE VARREDURA**\n⏰ {agora.strftime('%H:%M:%S')}\n🔎 {cargo_da_vez} / {estado_da_vez}\n"
-                     f"📝 {status}\n\n⏭️ **Próxima: {proxima.strftime('%H:%M:%S')}**")
+        relatorio = (
+            f"📊 **RELATÓRIO DE VARREDURA (60min)**\n"
+            f"⏰ Horário: {agora.strftime('%H:%M:%S')}\n"
+            f"🔎 Busca: {cargo_da_vez} / {estado_da_vez}\n"
+            f"📝 Status: {status}\n\n"
+            f"⏭️ **Próxima pesquisa às: {proxima.strftime('%H:%M:%S')}**"
+        )
         
         bot.send_message(CHAT_ID, relatorio, parse_mode="Markdown")
-        time.sleep(900)
+        
+        # Espera 3600 segundos (60 minutos)
+        print(f"Aguardando 60 minutos... Próxima às {proxima.strftime('%H:%M:%S')}")
+        time.sleep(3600)
 
-# Função para rodar o Flask
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
 
 if __name__ == "__main__":
-    # Inicia o monitor de vagas em uma thread separada
     t = threading.Thread(target=monitor_vagas)
     t.start()
-    # Inicia o servidor Flask na thread principal
     run_flask()
