@@ -15,7 +15,7 @@ SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 bot = TeleBot(TOKEN)
 app = Flask(__name__)
 
-# Rota para o Cron-job.org acessar e manter o bot vivo
+# Rota para o Cron-job (MANTÉM O BOT VIVO)
 @app.route('/')
 def home():
     return "Bot de Vagas Online - Ciclo 60min", 200
@@ -38,20 +38,20 @@ def buscar_vagas_reais(cargo, estado):
         return []
 
 def monitor_vagas():
-    bot.send_message(CHAT_ID, "🕒 **Configuração Atualizada!**\nO bot agora fará varreduras a cada **60 minutos**.")
+    # Mensagem inicial para confirmar que o bot ligou
+    bot.send_message(CHAT_ID, "🕒 **Monitor Pro A&B: Ciclo de 60min Ativado!**\nO bot está monitorando em segundo plano.")
     
     while True:
-        # Ajuste de Horário (Brasília costuma ser -3h em relação ao servidor)
+        # Ajuste de Horário (Brasília -3h)
         agora = datetime.now() - timedelta(hours=3)
         proxima = agora + timedelta(minutes=60)
         
         cargo_da_vez = random.choice(CARGOS)
         estado_da_vez = random.choice(ESTADOS)
         
-        print(f"[{agora.strftime('%H:%M:%S')}] Iniciando busca: {cargo_da_vez} em {estado_da_vez}")
         vagas = buscar_vagas_reais(cargo_da_vez, estado_da_vez)
-        
         vagas_enviadas = 0
+        
         if vagas:
             for vaga in vagas[:2]:
                 titulo = vaga.get("title", "CARGO").upper()
@@ -63,7 +63,7 @@ def monitor_vagas():
                 bot.send_message(CHAT_ID, f"📍 **{titulo}**\n🏢 Empresa: {empresa}\n🌎 Local: {local}\n\n🔗 **CANDIDATURA:**\n{link_direto}")
                 vagas_enviadas += 1
 
-        # Relatório de Status (Agora configurado para 60 min)
+        # Relatório de Status
         status = f"✅ {vagas_enviadas} encontradas" if vagas_enviadas > 0 else "ℹ️ Sem vagas novas"
         relatorio = (
             f"📊 **RELATÓRIO DE VARREDURA (60min)**\n"
@@ -74,16 +74,13 @@ def monitor_vagas():
         )
         
         bot.send_message(CHAT_ID, relatorio, parse_mode="Markdown")
-        
-        # Espera 3600 segundos (60 minutos)
-        print(f"Aguardando 60 minutos... Próxima às {proxima.strftime('%H:%M:%S')}")
         time.sleep(3600)
 
-def run_flask():
+if __name__ == "__main__":
+    # 1. Inicia o monitor em uma Thread separada
+    t = threading.Thread(target=monitor_vagas, daemon=True)
+    t.start()
+    
+    # 2. Inicia o Flask na porta correta que o Render exige
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
-
-if __name__ == "__main__":
-    t = threading.Thread(target=monitor_vagas)
-    t.start()
-    run_flask()
