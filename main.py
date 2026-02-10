@@ -18,13 +18,14 @@ app = Flask(__name__)
 # --- 1. FUNÇÃO DE BOAS-VINDAS (TEXTO PERSONALIZADO) ---
 @bot.message_handler(content_types=['new_chat_members'])
 def boas_vindas(message):
+    print(f"Detectado novo membro no chat {message.chat.id}") # Isso vai aparecer no log do Render
     try:
         for novo_membro in message.new_chat_members:
-            # Se o usuário não tiver sobrenome, usa o primeiro nome para não dar erro
-            sobrenome = novo_membro.last_name if novo_membro.last_name else novo_membro.first_name
+            # Pega o sobrenome ou primeiro nome
+            usuario = novo_membro.last_name if novo_membro.last_name else novo_membro.first_name
             
             texto = (
-                f"🎯 **Bem-vindo, {sobrenome}!**\n\n"
+                f"🎯 **Bem-vindo, {usuario}!**\n\n"
                 "Canal exclusivo para vagas de gestão em restaurantes:\n"
                 "🎩 Maitre | 📊 Gerente | 👔 Coordenador | 👁️ Supervisor\n\n"
                 "🔔 **Ative as notificações para receber as oportunidades!**\n"
@@ -32,7 +33,7 @@ def boas_vindas(message):
             )
             bot.send_message(message.chat.id, texto, parse_mode="Markdown")
     except Exception as e:
-        print(f"Erro no Boas-Vindas: {e}")
+        print(f"Erro ao enviar boas-vindas: {e}")
 
 # --- 2. SERVIDOR WEB (KEEP-ALIVE PARA O RENDER) ---
 @app.route('/')
